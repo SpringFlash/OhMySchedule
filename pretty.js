@@ -1,4 +1,5 @@
 const EMPTY_SYMBOL = ' ';
+MILITARY_DEP = 'спец подготовка';
 const LESSON_TYPES = ['empty', 'ЛЕК', 'ЛАБ', 'ПР'];
 const TYPES_CLASSES = ['emptyLesson', 'Lect', 'Lab', 'Pract'];
 const DAYS_OF_WEEKS = [
@@ -17,6 +18,7 @@ const emptyDay = {
   cab: '',
   prepod: '',
   hours: '',
+  today: false,
 };
 
 function parseAndHideOldTable() {
@@ -27,7 +29,11 @@ function parseAndHideOldTable() {
 
   const cells = [];
 
+  let nowDay = null;
   for (const row of rows) {
+    row.querySelector('th > span[style*="font-weight: bold; color:red;"]')
+      ? (nowDay = rows.indexOf(row))
+      : null;
     const els = [...row.querySelectorAll('td')];
     cells.push(els);
   }
@@ -38,7 +44,7 @@ function parseAndHideOldTable() {
     for (const les of day) {
       const elText = les.innerText;
 
-      if (elText !== EMPTY_SYMBOL) {
+      if (elText !== EMPTY_SYMBOL && !elText.includes(MILITARY_DEP)) {
         const lesString = elText.split('●');
 
         const firstInfo = lesString[0].split(' ');
@@ -50,6 +56,7 @@ function parseAndHideOldTable() {
         const prepod = secondInfo[1].split(' ', 3).join(' ');
         const name = secondInfo[0].split(hoursRegEx).join('');
         const hours = secondInfo[0].match(hoursRegEx)[0].match(/\d+/)[0];
+        const today = les.attributes['*title']?.value === 'Выполняется';
 
         lessons.push({
           type,
@@ -57,6 +64,7 @@ function parseAndHideOldTable() {
           cab,
           prepod,
           hours,
+          today,
         });
       } else {
         lessons.push(emptyDay);
@@ -75,11 +83,12 @@ function parseAndHideOldTable() {
         table.parentElement.clientWidth -
         (document.body.clientWidth - document.body.offsetWidth),
     },
+    nowDay,
   };
 }
 
 function createTables(parsed) {
-  const { schedule } = parsed;
+  const { schedule, nowDay } = parsed;
 
   const firstWeekTable = document.createElement('table');
   const secondWeekTable = document.createElement('table');
@@ -112,7 +121,10 @@ function createTables(parsed) {
   schedule.forEach((day, numb) => {
     const dayOfWeek = document.createElement('th');
     dayOfWeek.innerHTML = DAYS_OF_WEEKS[Math.floor(numb / 2)];
-    dayOfWeek.classList.add('day-of-week');
+    dayOfWeek.classList.add(
+      'day-of-week',
+      isFinite(nowDay) && nowDay + 1 === numb ? 'today' : undefined
+    );
     (numb % 2 === 0 ? daysOfWeeks1 : daysOfWeeks2).append(dayOfWeek);
 
     day.forEach((les, i) => {
@@ -127,7 +139,10 @@ function createTables(parsed) {
       }
       const newCell = document.createElement('td');
       newCell.append(getTextForCell(les));
-      newCell.classList.add(TYPES_CLASSES[les.type]);
+      newCell.classList.add(
+        TYPES_CLASSES[les.type],
+        les.today ? 'today' : undefined
+      );
       const location = (numb % 2 === 0 ? firstWeek : secondWeek)[i];
       if (les.type === 0)
         location.dataset.skipped = parseInt(location.dataset.skipped || 0) + 1;
@@ -322,6 +337,9 @@ function addStylesAndFont() {
       border-top: #000 1px solid;
       border-right: #000 1px solid;
       transform: translate(-70%, -50%) rotate(45deg);
+    }
+    .today {
+      border: red 1px solid;
     }
   `;
   const font = document.createElement('link');
